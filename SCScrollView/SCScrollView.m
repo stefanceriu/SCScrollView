@@ -38,6 +38,11 @@ const static int maximumSteps = 10;
 
 @implementation SCScrollView
 
+- (void)dealloc
+{
+    [self.displayLink invalidate];
+}
+
 - (id)initWithFrame:(CGRect)frame
 {
     if(self = [super initWithFrame:frame]) {
