@@ -10,29 +10,21 @@
 #import "SCScrollView.h"
 #import "SCWeakObjectWrapper.h"
 
-// constants used for Newton approximation of cubic function root
-const static double approximationTolerance = 0.00000001;
-const static int maximumSteps = 10;
+#import "CAMediaTimingFunction+HLSExtensions.h"
 
 @interface SCScrollView ()
 
-// display link used to trigger event to scroll the view
 @property (nonatomic, strong) CADisplayLink *displayLink;
 
-// animation properties
 @property (nonatomic, strong) CAMediaTimingFunction *timingFunction;
+
 @property (nonatomic, assign) CFTimeInterval duration;
+@property (nonatomic, assign) CFTimeInterval startTime;
 
-// state at the start of an animation
-@property (nonatomic, assign) CFTimeInterval beginTime;
-@property (nonatomic, assign) CGPoint beginContentOffset;
-
-// delta between the contentOffset at the start of the animation and
-// the contentOffset at the end of the animation
+@property (nonatomic, assign) CGPoint startContentOffset;
 @property (nonatomic, assign) CGPoint deltaContentOffset;
 
-// animation completion block
-@property (nonatomic, copy) void(^completionBlock)();
+@property (nonatomic, copy) void(^animationCompletionBlock)();
 
 @end
 
@@ -52,6 +44,8 @@ const static int maximumSteps = 10;
     return self;
 }
 
+#pragma mark - UIGestureRecognizerDelegate
+
 - (BOOL)gestureRecognizerShouldBegin:(UIGestureRecognizer *)gestureRecognizer
 {
     if([gestureRecognizer isKindOfClass:[UIPanGestureRecognizer class]]) {
@@ -67,8 +61,6 @@ const static int maximumSteps = 10;
     return YES;
 }
 
-#pragma mark - Set ContentOffset with Custom Animation
-
 - (void)scrollRectToVisible:(CGRect)rect animated:(BOOL)animated
 {
     #pragma clang diagnostic push
@@ -82,25 +74,14 @@ const static int maximumSteps = 10;
     [super scrollRectToVisible:rect animated:animated];
 }
 
+#pragma mark - Set ContentOffset with Custom Animation
+
 - (void)setContentOffset:(CGPoint)contentOffset
       withTimingFunction:(CAMediaTimingFunction *)timingFunction
                 duration:(CFTimeInterval)duration
               completion:(void(^)())completion
 {
-    //Blocking interaction while active
-    if(self.displayLink && !self.displayLink.paused) {
-        NSLog(@"SCScrollView - Action canceled");
-        return;
-    }
-    
-    if(CGPointEqualToPoint(self.contentOffset, contentOffset)) {
-        if(completion) {
-            completion();
-        }
-        return;
-    }
-    
-    if(duration == 0.0f) {
+    if(CGPointEqualToPoint(self.contentOffset, contentOffset) || duration == 0.0f) {
         
         self.contentOffset = contentOffset;
         
@@ -108,126 +89,50 @@ const static int maximumSteps = 10;
             completion();
         }
         return;
+    }
+    
+    if (self.displayLink == nil) {
+        SCWeakObjectWrapper *target = [[SCWeakObjectWrapper alloc] initWithObject:self];
+        self.displayLink = [CADisplayLink displayLinkWithTarget:target selector:@selector(_updateContentOffset:)];
+        [self.displayLink setFrameInterval:1];
+        [self.displayLink setPaused:YES];
+        [self.displayLink addToRunLoop:[NSRunLoop currentRunLoop] forMode:NSRunLoopCommonModes];
     }
     
     self.duration = duration;
     self.timingFunction = timingFunction;
-    self.completionBlock = completion;
+    self.animationCompletionBlock = completion;
+    self.deltaContentOffset = CGPointMake(contentOffset.x - self.contentOffset.x, contentOffset.y - self.contentOffset.y);
+    self.startTime = 0.0f;
     
-    self.deltaContentOffset = CGPointMake(contentOffset.x - self.contentOffset.x,
-                                          contentOffset.y - self.contentOffset.y);
-    
-    if (!self.displayLink) {
-        
-        SCWeakObjectWrapper *target = [[SCWeakObjectWrapper alloc] initWithObject:self];
-        self.displayLink = [CADisplayLink
-                            displayLinkWithTarget:target
-                            selector:@selector(updateContentOffset:)];
-        self.displayLink.frameInterval = 1;
-        [self.displayLink addToRunLoop:[NSRunLoop currentRunLoop]
-                               forMode:NSRunLoopCommonModes];
-    } else {
-        self.displayLink.paused = NO;
-    }
+    [self.displayLink setPaused:NO];
 }
 
-- (void)updateContentOffset:(CADisplayLink *)displayLink {
-    
-    // on the first invokation in an animation beginTime is zero
-    if (self.beginTime == 0.0) {
-        
-        self.beginTime = displayLink.timestamp;
-        self.beginContentOffset = self.contentOffset;
-    } else {
-        
-        CFTimeInterval deltaTime = displayLink.timestamp - self.beginTime;
-        
-        // ratio of duration that went by
-        CGFloat ratio = (CGFloat) (deltaTime / self.duration);
-        // ratio adjusted by timing function
-        CGFloat adjustedRatio;
-        
-        if (ratio > 1) {
-            adjustedRatio = 1.0;
-        } else {
-            adjustedRatio = (CGFloat) timingFunctionValue(self.timingFunction, ratio);
-        }
-        
-        if (1 - adjustedRatio < 0.001) {
-            
-            adjustedRatio = 1.0;
-            self.displayLink.paused = YES;
-            self.beginTime = 0.0;
-        }
-        
-        CGPoint currentDeltaContentOffset = CGPointMake(self.deltaContentOffset.x * adjustedRatio,
-                                                        self.deltaContentOffset.y * adjustedRatio);
-        
-        CGPoint contentOffset = CGPointMake(self.beginContentOffset.x + currentDeltaContentOffset.x,
-                                            self.beginContentOffset.y + currentDeltaContentOffset.y);
-        
-        self.contentOffset = contentOffset;
-        
-        if (adjustedRatio == 1.0) {
-            // inform delegate about end of animation
-            if([self.delegate respondsToSelector:@selector(scrollViewDidEndScrollingAnimation:)]) {
-                [self.delegate scrollViewDidEndScrollingAnimation:self];
-            }
-            
-            if(self.completionBlock) {
-                self.completionBlock();
-            }
-        }
-    }
-}
-
-static double cubicFunctionValue(double a, double b, double c, double d, double x) {
-    
-    return (a*x*x*x)+(b*x*x)+(c*x)+d;
-}
-
-static double cubicDerivativeValue(double a, double b, double c, double __unused d, double x) {
-    
-    // derivation of the cubic (a*x*x*x)+(b*x*x)+(c*x)+d
-    return (3*a*x*x)+(2*b*x)+c;
-}
-
-static double rootOfCubic(double a, double b, double c, double d, double startPoint) {
-    
-    // we use 0 as start point as the root will be in the interval [0,1]
-    double x = startPoint;
-    double lastX = 1;
-    
-    // approximate a root by using the Newton-Raphson method
-    int y = 0;
-    while (y <= maximumSteps && fabs(lastX - x) > approximationTolerance) {
-        lastX = x;
-        x = x - (cubicFunctionValue(a, b, c, d, x) / cubicDerivativeValue(a, b, c, d, x));
-        y++;
+- (void)_updateContentOffset:(CADisplayLink *)displayLink
+{
+    if(self.startTime == 0.0f) {
+        self.startTime = self.displayLink.timestamp;
+        self.startContentOffset = self.contentOffset;
+        return;
     }
     
-    return x;
-}
-
-static double timingFunctionValue(CAMediaTimingFunction *function, double x) {
+    CGFloat ratio = (CGFloat) ((displayLink.timestamp - self.startTime) / self.duration);
+    ratio = (1.0f - ratio < 0.01f) ? 1.0f : [self.timingFunction valueForNormalizedTime:ratio];
     
-    float a[2];
-    float b[2];
-    float c[2];
-    float d[2];
+    self.contentOffset = CGPointMake(self.startContentOffset.x + (self.deltaContentOffset.x * ratio),
+                                     self.startContentOffset.y + (self.deltaContentOffset.y * ratio));
     
-    [function getControlPointAtIndex:0 values:a];
-    [function getControlPointAtIndex:1 values:b];
-    [function getControlPointAtIndex:2 values:c];
-    [function getControlPointAtIndex:3 values:d];
-    
-    // look for t value that corresponds to provided x
-    double t = rootOfCubic(-a[0]+3*b[0]-3*c[0]+d[0], 3*a[0]-6*b[0]+3*c[0], -3*a[0]+3*b[0], a[0]-x, x);
-    
-    // return corresponding y value
-    double y = cubicFunctionValue(-a[1]+3*b[1]-3*c[1]+d[1], 3*a[1]-6*b[1]+3*c[1], -3*a[1]+3*b[1], a[1], t);
-    
-    return y;
+    if (ratio == 1.0f) {
+        [self.displayLink setPaused:YES];
+        
+        if([self.delegate respondsToSelector:@selector(scrollViewDidEndScrollingAnimation:)]) {
+            [self.delegate scrollViewDidEndScrollingAnimation:self];
+        }
+        
+        if(self.animationCompletionBlock) {
+            self.animationCompletionBlock();
+        }
+    }
 }
 
 @end
