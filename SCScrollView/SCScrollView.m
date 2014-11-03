@@ -12,6 +12,10 @@
 
 #import "CAMediaTimingFunction+HLSExtensions.h"
 
+@interface UIView (FindFirstResponder)
+- (id)sc_findFirstResponder;
+@end
+
 @interface SCScrollView ()
 
 @property (nonatomic, strong) CADisplayLink *displayLink;
@@ -61,19 +65,6 @@
     return YES;
 }
 
-- (void)scrollRectToVisible:(CGRect)rect animated:(BOOL)animated
-{
-    #pragma clang diagnostic push
-    #pragma clang diagnostic ignored "-Wundeclared-selector"
-    //Ignoring calls from any textView contained by this scroll
-    if([[self performSelector:@selector(firstResponder)] isKindOfClass:[UITextField class]]) {
-        return;
-    }
-    #pragma clang diagnostic pop
-    
-    [super scrollRectToVisible:rect animated:animated];
-}
-
 #pragma mark - Set ContentOffset with Custom Animation
 
 - (void)setContentOffset:(CGPoint)contentOffset
@@ -108,6 +99,8 @@
     [self.displayLink setPaused:NO];
 }
 
+#pragma mark - Private
+
 - (void)_updateContentOffset:(CADisplayLink *)displayLink
 {
     if(self.startTime == 0.0f) {
@@ -135,5 +128,35 @@
     }
 }
 
+- (void)scrollRectToVisible:(CGRect)rect animated:(BOOL)animated
+{
+    //Ignoring calls from any textField contained by this scrollview
+    if([[self sc_findFirstResponder] isKindOfClass:[UITextField class]]) {
+        return;
+    }
+    
+    [super scrollRectToVisible:rect animated:animated];
+}
+
 @end
 
+@implementation UIView (FindFirstResponder)
+
+- (id)sc_findFirstResponder
+{
+    if (self.isFirstResponder) {
+        return self;
+    }
+    
+    for (UIView *subview in self.subviews) {
+        id responder = [subview sc_findFirstResponder];
+        
+        if (responder) {
+            return responder;
+        }
+    }
+    
+    return nil;
+}
+
+@end
