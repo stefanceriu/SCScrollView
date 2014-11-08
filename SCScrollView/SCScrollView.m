@@ -6,21 +6,20 @@
 //  Copyright (c) 2014 Stefan Ceriu. All rights reserved.
 //
 
-#import <QuartzCore/QuartzCore.h>
 #import "SCScrollView.h"
+
+#import "SCEasingFunctionProtocol.h"
 #import "SCWeakObjectWrapper.h"
 
-#import "CAMediaTimingFunction+HLSExtensions.h"
-
-@interface UIView (FindFirstResponder)
-- (id)sc_findFirstResponder;
+@interface UIView (SCFindFirstResponder)
+- (id)scFindFirstResponder;
 @end
 
 @interface SCScrollView ()
 
 @property (nonatomic, strong) CADisplayLink *displayLink;
 
-@property (nonatomic, strong) CAMediaTimingFunction *timingFunction;
+@property (nonatomic, strong) id<SCEasingFunctionProtocol> easingFunction;
 
 @property (nonatomic, assign) CFTimeInterval duration;
 @property (nonatomic, assign) CFTimeInterval startTime;
@@ -68,7 +67,7 @@
 #pragma mark - Set ContentOffset with Custom Animation
 
 - (void)setContentOffset:(CGPoint)contentOffset
-      withTimingFunction:(CAMediaTimingFunction *)timingFunction
+          easingFunction:(id<SCEasingFunctionProtocol>)easingFunction
                 duration:(CFTimeInterval)duration
               completion:(void(^)())completion
 {
@@ -91,7 +90,7 @@
     }
     
     self.duration = duration;
-    self.timingFunction = timingFunction;
+    self.easingFunction = easingFunction;
     self.animationCompletionBlock = completion;
     self.deltaContentOffset = CGPointMake(contentOffset.x - self.contentOffset.x, contentOffset.y - self.contentOffset.y);
     self.startTime = 0.0f;
@@ -110,7 +109,7 @@
     }
     
     CGFloat ratio = (CGFloat) ((displayLink.timestamp - self.startTime) / self.duration);
-    ratio = (1.0f - ratio < 0.01f) ? 1.0f : [self.timingFunction valueForNormalizedTime:ratio];
+    ratio = (1.0f - ratio < 0.01f) ? 1.0f : [self.easingFunction solveForInput:ratio];
     
     self.contentOffset = CGPointMake(self.startContentOffset.x + (self.deltaContentOffset.x * ratio),
                                      self.startContentOffset.y + (self.deltaContentOffset.y * ratio));
@@ -131,7 +130,7 @@
 - (void)scrollRectToVisible:(CGRect)rect animated:(BOOL)animated
 {
     //Ignoring calls from any textField contained by this scrollview
-    if([[self sc_findFirstResponder] isKindOfClass:[UITextField class]]) {
+    if([[self scFindFirstResponder] isKindOfClass:[UITextField class]]) {
         return;
     }
     
@@ -140,16 +139,16 @@
 
 @end
 
-@implementation UIView (FindFirstResponder)
+@implementation UIView (SCFindFirstResponder)
 
-- (id)sc_findFirstResponder
+- (id)scFindFirstResponder
 {
     if (self.isFirstResponder) {
         return self;
     }
     
     for (UIView *subview in self.subviews) {
-        id responder = [subview sc_findFirstResponder];
+        id responder = [subview scFindFirstResponder];
         
         if (responder) {
             return responder;

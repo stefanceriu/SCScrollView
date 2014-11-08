@@ -8,12 +8,8 @@
 
 #import <UIKit/UIKit.h>
 
+@protocol SCEasingFunctionProtocol;
 
-/**
- *  Subclass of UIScrollView that, in contrast to UIScrollView, uses a custom
- *  timing function to animate setContentOffset.
- *
- */
 @interface SCScrollView : UIScrollView
 
 @property (nonatomic, strong) UIBezierPath *touchRefusalArea;
@@ -21,7 +17,7 @@
 @property (nonatomic, assign) NSUInteger maximumNumberOfTouches;
 
 - (void)setContentOffset:(CGPoint)contentOffset
-      withTimingFunction:(CAMediaTimingFunction *)timingFunction
+          easingFunction:(id<SCEasingFunctionProtocol>)easingFunction
                 duration:(CFTimeInterval)duration
               completion:(void(^)())completion;
 
