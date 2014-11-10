@@ -130,7 +130,8 @@
 - (void)scrollRectToVisible:(CGRect)rect animated:(BOOL)animated
 {
     //Ignoring calls from any textField contained by this scrollview
-    if([[self scFindFirstResponder] isKindOfClass:[UITextField class]]) {
+    id firstResponder = [self scFindFirstResponder];
+    if([firstResponder isKindOfClass:[UITextField class]] || [firstResponder isKindOfClass:[UISearchBar class]]) {
         return;
     }
     
