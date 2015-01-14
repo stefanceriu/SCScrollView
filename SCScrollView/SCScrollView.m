@@ -64,13 +64,23 @@
     return YES;
 }
 
-#pragma mark - Set ContentOffset with Custom Animation
+#pragma mark - Public
+
+- (BOOL)isRunningAnimation
+{
+	return (self.displayLink && !self.displayLink.paused);
+}
 
 - (void)setContentOffset:(CGPoint)contentOffset
           easingFunction:(id<SCEasingFunctionProtocol>)easingFunction
                 duration:(CFTimeInterval)duration
               completion:(void(^)())completion
 {
+	if(self.animationCompletionBlock) {
+		self.animationCompletionBlock();
+		self.animationCompletionBlock = nil;
+	}
+	
     if(CGPointEqualToPoint(self.contentOffset, contentOffset) || duration == 0.0f) {
         
         self.contentOffset = contentOffset;
@@ -96,6 +106,24 @@
     self.startTime = 0.0f;
     
     [self.displayLink setPaused:NO];
+}
+
+- (void)stopRunningAnimation
+{
+	if(self.displayLink.isPaused) {
+		return;
+	}
+	
+	[self.displayLink setPaused:YES];
+	
+	if([self.delegate respondsToSelector:@selector(scrollViewDidEndScrollingAnimation:)]) {
+		[self.delegate scrollViewDidEndScrollingAnimation:self];
+	}
+	
+	if(self.animationCompletionBlock) {
+		self.animationCompletionBlock();
+		self.animationCompletionBlock = nil;
+	}
 }
 
 #pragma mark - Private

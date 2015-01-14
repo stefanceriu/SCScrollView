@@ -21,5 +21,8 @@
                 duration:(CFTimeInterval)duration
               completion:(void(^)())completion;
 
+- (BOOL)isRunningAnimation;
+
+- (void)stopRunningAnimation;
 
 @end
