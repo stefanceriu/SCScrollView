@@ -151,6 +151,7 @@
         
         if(self.animationCompletionBlock) {
             self.animationCompletionBlock();
+            self.animationCompletionBlock = nil;
         }
     }
 }
