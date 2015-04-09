@@ -20,7 +20,7 @@
 
 + (instancetype)easingFunctionWithType:(SCEasingFunctionType)type
 {
-    return [[self alloc] initWithType:type];
+    return [[SCEasingFunction alloc] initWithType:type];
 }
 
 - (instancetype)initWithType:(SCEasingFunctionType)type
