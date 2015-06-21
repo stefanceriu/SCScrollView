@@ -6,6 +6,8 @@
 //  Copyright (c) 2014 Stefan Ceriu. All rights reserved.
 //
 
+@import Foundation;
+
 @interface SCWeakObjectWrapper : NSProxy
 
 - (instancetype)initWithObject:(id)object;
