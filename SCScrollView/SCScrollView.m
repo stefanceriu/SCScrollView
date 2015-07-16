@@ -214,6 +214,19 @@
 
 @implementation SCScrollViewTouchApprovalArea
 
+- (instancetype)init
+{
+	if (self = [super init]) {
+		
+		_direction = (UISwipeGestureRecognizerDirectionUp   |
+					  UISwipeGestureRecognizerDirectionLeft |
+					  UISwipeGestureRecognizerDirectionDown |
+					  UISwipeGestureRecognizerDirectionRight);
+	}
+	
+	return self;
+}
+
 @end
 
 
