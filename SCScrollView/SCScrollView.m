@@ -32,7 +32,7 @@
 @property (nonatomic, assign) CGPoint startContentOffset;
 @property (nonatomic, assign) CGPoint deltaContentOffset;
 
-@property (nonatomic, copy) void(^animationCompletionBlock)();
+@property (nonatomic, copy) void(^completionBlock)();
 
 @end
 
@@ -117,9 +117,8 @@
 				duration:(CFTimeInterval)duration
 			  completion:(void(^)())completion
 {
-	if(self.animationCompletionBlock) {
-		self.animationCompletionBlock();
-		self.animationCompletionBlock = nil;
+	if(!self.displayLink.paused && self.completionBlock) {
+		[self stopRunningAnimation];
 	}
 	
 	if(CGPointEqualToPoint(self.contentOffset, contentOffset) || duration == 0.0f) {
@@ -142,7 +141,7 @@
 	
 	self.duration = duration;
 	self.easingFunction = easingFunction;
-	self.animationCompletionBlock = completion;
+	self.completionBlock = completion;
 	self.deltaContentOffset = CGPointMake(contentOffset.x - self.contentOffset.x, contentOffset.y - self.contentOffset.y);
 	self.startTime = 0.0f;
 	
@@ -161,9 +160,9 @@
 		[self.delegate scrollViewDidEndScrollingAnimation:self];
 	}
 	
-	if(self.animationCompletionBlock) {
-		self.animationCompletionBlock();
-		self.animationCompletionBlock = nil;
+	if(self.completionBlock) {
+		self.completionBlock();
+		self.completionBlock = nil;
 	}
 }
 
@@ -190,9 +189,9 @@
 			[self.delegate scrollViewDidEndScrollingAnimation:self];
 		}
 		
-		if(self.animationCompletionBlock) {
-			self.animationCompletionBlock();
-			self.animationCompletionBlock = nil;
+		if(self.completionBlock) {
+			self.completionBlock();
+			self.completionBlock = nil;
 		}
 	}
 }
