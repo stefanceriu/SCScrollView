@@ -20,7 +20,7 @@
 - (void)setContentOffset:(CGPoint)contentOffset
 		  easingFunction:(id<SCEasingFunctionProtocol>)easingFunction
 				duration:(CFTimeInterval)duration
-			  completion:(void(^)())completion;
+			  completion:(void(^)(void))completion;
 
 
 - (void)addTouchApprovalArea:(SCScrollViewTouchApprovalArea *)touchApprovalArea;

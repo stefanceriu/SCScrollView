@@ -11,6 +11,8 @@
 #import "SCEasingFunctionProtocol.h"
 #import "SCWeakObjectWrapper.h"
 
+#define SYSTEM_VERSION_GREATER_THAN_OR_EQUAL_TO(v)  ([[[UIDevice currentDevice] systemVersion] compare:v options:NSNumericSearch] != NSOrderedAscending)
+
 @interface UIView (SCFindFirstResponder)
 
 - (id)scFindFirstResponder;
@@ -32,7 +34,7 @@
 @property (nonatomic, assign) CGPoint startContentOffset;
 @property (nonatomic, assign) CGPoint deltaContentOffset;
 
-@property (nonatomic, copy) void(^completionBlock)();
+@property (nonatomic, copy) void(^completionBlock)(void);
 
 @end
 
@@ -47,8 +49,14 @@
 {
 	if(self = [super initWithFrame:frame]) {
 		_maximumNumberOfTouches = NSUIntegerMax;
-		_approvalAreas = [NSMutableArray array];
-	}
+        _approvalAreas = [NSMutableArray array];
+        
+#if __IPHONE_OS_VERSION_MAX_ALLOWED >= 110000
+        if (@available(iOS 11.0, *)) {
+            self.contentInsetAdjustmentBehavior = UIScrollViewContentInsetAdjustmentNever;
+        }
+#endif
+    }
 	
 	return self;
 }
@@ -115,7 +123,7 @@
 - (void)setContentOffset:(CGPoint)contentOffset
 		  easingFunction:(id<SCEasingFunctionProtocol>)easingFunction
 				duration:(CFTimeInterval)duration
-			  completion:(void(^)())completion
+			  completion:(void(^)(void))completion
 {
 	if(!self.displayLink.paused && self.completionBlock) {
 		[self stopRunningAnimation];
